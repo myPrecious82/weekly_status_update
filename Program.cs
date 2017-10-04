@@ -13,21 +13,25 @@ namespace weekly_status_update
         {
             var appSettings = ConfigurationManager.AppSettings;
 
-            var path = appSettings["TemplatePath"];
-            object outputPath = appSettings["WordOutputPath"];
+            var path = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName), @"..\..\"));
+            var templatePath = $"{path}{appSettings["TemplateFileName"]}";
+
+            object outputPath = $"{path}{appSettings["WordOutputFileName"]}";
+            var newPath = outputPath.ToString().Replace(".docx", $" - {appSettings["ConsultantName"]}.docx");
             object oMissing = System.Reflection.Missing.Value;
+
             System.Globalization.CultureInfo ci = System.Threading.Thread.CurrentThread.CurrentCulture;
             DayOfWeek fdow = ci.DateTimeFormat.FirstDayOfWeek;
             DayOfWeek today = DateTime.Now.DayOfWeek;
             DateTime sow = DateTime.Now.AddDays(-(today - fdow)).Date;
             DateTime eow = sow.AddDays(6);
             DateTime friday = eow.AddDays(-1);
-            const string emailSmtpHost = "SMTPR.illinois.gov";
-            const string emailSendFrom = "alexis.atchison@illinois.gov";
-            const string emailSendFromDisplay = "Atchison, Alexis";
+            var emailSmtpHost = appSettings["EmailSmtpHost"];
+            var emailSendFrom = appSettings["EmailSendFrom"];
+            var emailSendFromDisplay = appSettings["EmailSendFromDisplay"];
             string outputFileName;
 
-            var byteArray = File.ReadAllBytes(path);
+            var byteArray = File.ReadAllBytes(templatePath);
             using (MemoryStream stream = new MemoryStream())
             {
                 stream.Write(byteArray, 0, (int)byteArray.Length);
@@ -52,7 +56,7 @@ namespace weekly_status_update
                                 break;
                         }
 
-                    outputFileName = outputPath.ToString().Replace(".docx", $" {sow:MM.dd.yyyy}.docx");
+                    outputFileName = newPath.ToString().Replace(".docx", $" {sow:MM.dd.yyyy}.docx");
                     wordprocessingDocument.Close();
                     wordprocessingDocument.Dispose();
                 }
@@ -67,9 +71,9 @@ namespace weekly_status_update
                 stream.Dispose();
             }
             
-            var emailSendTo = appSettings["EmailTo"];
+            var emailSendTo = appSettings["EmailSendTo"];
 #if DEBUG
-                emailSendTo = "alexis.atchison@illinois.gov";
+                emailSendTo = appSettings["DebugEmailSendTo"];
 #endif
             var emailSubject = appSettings["EmailSubject"];
             var client = new SmtpClient(emailSmtpHost);
