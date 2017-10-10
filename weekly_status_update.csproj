@@ -68,4 +68,14 @@
     <Folder Include="Status_Reports\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <ItemGroup>
+    <BinFiles Include="bin\**\*.*"/>
+    <StatusReports Include="Status_Reports\**\*.*"/>
+    <TemplateFiles Include="Templates\**\*.*"/>
+  </ItemGroup>
+  <Target Name="AfterBuild">
+    <Copy SourceFiles="@(BinFiles)" DestinationFolder="C:\Users\CAA6377\Source\Repos\ConsultantFiles\"/>
+    <Copy SourceFiles="@(StatusReports)" DestinationFolder="C:\Users\CAA6377\Source\Repos\ConsultantFiles\Status_Reports"/>
+    <Copy SourceFiles="@(TemplateFiles)" DestinationFolder="C:\Users\CAA6377\Source\Repos\ConsultantFiles\Templates"/>
+  </Target>
 </Project>

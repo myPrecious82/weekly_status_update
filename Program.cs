@@ -13,11 +13,35 @@ namespace weekly_status_update
         {
             var appSettings = ConfigurationManager.AppSettings;
 
-            var path = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName), @"..\..\"));
-            var templatePath = $"{path}{appSettings["TemplateFileName"]}";
+            // email settings from config
+            var emailSmtpHost = appSettings["EmailSmtpHost"];
+            var emailSubject = appSettings["EmailSubject"];
+            var emailBody = appSettings["EmailBody"];
 
-            object outputPath = $"{path}{appSettings["WordOutputFileName"]}";
-            var newPath = outputPath.ToString().Replace(".docx", $" - {appSettings["ConsultantName"]}.docx");
+            // template filenames from config
+            var templateFileName = appSettings["TemplateFileName"];
+            var outputFileName = appSettings["WordOutputFileName"];
+            
+            // variables to hold information from ConsultantInfo.txt
+            var consultantName = appSettings["ConsultantName"];
+            var consultantPhone = appSettings["ConsultantPhone"];
+            var emailSendFrom = appSettings["EmailSendFrom"];
+            var emailSendFromDisplay = appSettings["EmailSendFromDisplay"];
+            var managerName = appSettings["ManagerName"];
+            var consultingContacts = appSettings["ConsultingContacts"];
+
+            //// is this running from exe outside of bin folder?
+            var path = Path.GetFullPath(Path.GetDirectoryName(System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName)) + @"\";
+            
+#if DEBUG // if we're debugging, send email to consultant email
+            path = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName), @"..\..\"));
+            consultingContacts = emailSendFrom;
+#endif
+
+            var templatePath = $"{path}{templateFileName}";
+            object outputPath = $"{path}{outputFileName}";
+            var newPath = outputPath.ToString().Replace(".docx", $" - {consultantName}.docx");
+
             object oMissing = System.Reflection.Missing.Value;
 
             System.Globalization.CultureInfo ci = System.Threading.Thread.CurrentThread.CurrentCulture;
@@ -26,10 +50,6 @@ namespace weekly_status_update
             DateTime sow = DateTime.Now.AddDays(-(today - fdow)).Date;
             DateTime eow = sow.AddDays(6);
             DateTime friday = eow.AddDays(-1);
-            var emailSmtpHost = appSettings["EmailSmtpHost"];
-            var emailSendFrom = appSettings["EmailSendFrom"];
-            var emailSendFromDisplay = appSettings["EmailSendFromDisplay"];
-            string outputFileName;
 
             var byteArray = File.ReadAllBytes(templatePath);
             using (MemoryStream stream = new MemoryStream())
@@ -52,7 +72,7 @@ namespace weekly_status_update
                                 text.Text = text.Text.Replace("{Next Report Date}", friday.AddDays(7).ToString("MMMM dd, yyyy"));
                                 break;
                             case "{Consultant Name}":
-                                text.Text = text.Text.Replace("{Consultant Name}", appSettings["ConsultantName"]);
+                                text.Text = text.Text.Replace("{Consultant Name}", consultantName);
                                 break;
                         }
 
@@ -70,12 +90,7 @@ namespace weekly_status_update
                 stream.Close();
                 stream.Dispose();
             }
-            
-            var emailSendTo = appSettings["EmailSendTo"];
-#if DEBUG
-                emailSendTo = appSettings["DebugEmailSendTo"];
-#endif
-            var emailSubject = appSettings["EmailSubject"];
+
             var client = new SmtpClient(emailSmtpHost);
 
             using (MailMessage message = new MailMessage())
@@ -86,17 +101,17 @@ namespace weekly_status_update
                 message.SubjectEncoding = System.Text.Encoding.UTF8;
                 message.Bcc.Add(new MailAddress(emailSendFrom));
                 message.From = new MailAddress(emailSendFrom, emailSendFromDisplay, System.Text.Encoding.UTF8);
-                foreach (var x in emailSendTo.Split(','))
+                foreach (var x in consultingContacts.Split(','))
                 {
                     message.To.Add(new MailAddress(x));
                 }
-            message.Attachments.Add(new Attachment(outputFileName.ToString()));
-            message.Body = $"{message.Body}<span style='font-size:11pt;font-family:Calibri'>{appSettings["EmailBody"]}</span>";
+                message.Attachments.Add(new Attachment(outputFileName.ToString()));
+                message.Body = $"{message.Body}<span style='font-size:11pt;font-family:Calibri'>{emailBody}</span>";
 
-            client.Send(message);
+                client.Send(message);
 
-            message.Dispose();
+                message.Dispose();
+            }
         }
     }
-}
 }
